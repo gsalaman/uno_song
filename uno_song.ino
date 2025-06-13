@@ -176,6 +176,10 @@ int num_songs = sizeof(all_songs)/sizeof(song_type);
 
 song_type song = temple_song;
 
+uint32_t song_button_press_ms = 0;
+int      last_song_button_state = 1;
+#define SONG_BUTTON_PRESS_TIME 500
+
 void start_song( void )
 {
   note_type first_note;
@@ -240,22 +244,67 @@ void play_song( void )
   }
 }
 
+void check_for_song_toggle(void)
+{
+  int current_song_button_state;
+  int current_ms;
+
+  current_ms = millis();
+  
+  current_song_button_state = digitalRead(SONG_BUTTON_PIN);
+  if (current_song_button_state == 0)
+  { 
+    /* if the button was just pressed, mark the time when it was pressed */
+    if (last_song_button_state == 1)
+    {
+      Serial.print("Song button pressed.  Time: ");
+      Serial.println(current_ms);
+      song_button_press_ms = current_ms;
+    }
+  }
+  else
+  {
+    if (last_song_button_state == 0)
+    {
+      /* if the button was released, see if it was down long enough to warrant 
+       *  a toggle
+       */
+      Serial.println("button release");
+      
+      if (current_ms > song_button_press_ms + SONG_BUTTON_PRESS_TIME)
+      {
+        Serial.println("toggle");
+        
+        /* toggle the song */
+        if (song_playing)
+        {
+          stop_song();
+        }
+        else
+        {
+          start_song();
+        }
+      }
+    }
+  }
+  
+  last_song_button_state = current_song_button_state;
+}
+
 void setup (void)
 {
   pinMode(SPEAKER_PIN, OUTPUT);
+  pinMode(SONG_BUTTON_PIN, INPUT_PULLUP);
 
   Serial.begin(9600);
 
   Serial.println("initialized");
-
-  start_song();
 }
 
 void loop (void)
 {
-  /* check song button to see if we need to change the song state */
-  /* coming soon */
 
+  check_for_song_toggle();
   if (song_playing)
   {
     play_song();
